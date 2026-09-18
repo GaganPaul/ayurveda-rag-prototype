@@ -1,4 +1,4 @@
-# 🌿 AyurVeda — Small RAG Prototype
+# 🌿 AyurVeda — A RAG-based Source Grounded AI ChatBot 
 
 A small **Ayurvedic health-awareness chatbot prototype** built with:
 
