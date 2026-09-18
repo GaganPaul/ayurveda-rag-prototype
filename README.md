@@ -1,6 +1,6 @@
 # 🌿 AyurVeda — A RAG-based Source Grounded AI ChatBot 
 
-A small **Ayurvedic health-awareness chatbot prototype** built with:
+An **Ayurvedic health-awareness chatbot** built with:
 
 - React + Vite frontend
 - FastAPI backend
@@ -8,6 +8,9 @@ A small **Ayurvedic health-awareness chatbot prototype** built with:
 - Basic local RAG using TF-IDF
 - PDF/TXT document ingestion
 - Source snippets/citations
+
+## Try it out Here:
+https://ayurveda-rag-prototype.onrender.com
 
 ## What it does
 
@@ -44,6 +47,7 @@ For the real project, replace the sample knowledge files with carefully curated,
 The frontend now includes a professional landing page, Supabase sign-in/sign-up flow, responsive assistant workspace, saved conversation history, source cards, copy and regenerate actions, dark mode, and dedicated About and Safety views.
 
 Authentication is handled by Supabase Auth, while conversations and messages are persisted in Supabase PostgreSQL. A production release should still configure email verification, password policies, backups, and monitoring.
+
 
 ## Supabase persistence
 
