@@ -1,0 +1,23 @@
+TITLE: Amla / Indian Gooseberry (Phyllanthus emblica)
+TYPE: Botanical / traditional-use educational summary
+
+Amla, commonly known as Indian gooseberry, is a fruit used as food and in Ayurvedic traditions.
+
+TRADITIONAL USE:
+Amla has traditional dietary and Ayurvedic uses. These uses should not automatically be treated as evidence that amla prevents or cures disease.
+
+NUTRITION:
+Amla is a plant food containing nutrients and bioactive compounds. Nutritional composition can vary with variety, processing, and preparation.
+
+RESEARCH EVIDENCE:
+Studies have investigated amla preparations for several metabolic and other health outcomes. The evidence depends on the exact preparation and study design, and research findings should not be generalized beyond what was actually studied.
+
+SAFETY:
+Concentrated extracts and supplements are different from consuming the fruit as food. Users with medical conditions or those taking medication should seek professional advice before using concentrated products.
+
+CHATBOT RULE:
+Do not promise disease prevention or cure. Clearly label traditional use, nutritional information, and clinical evidence as different categories.
+
+SOURCE NOTES:
+WHO traditional-medicine safety guidance.
+Use uploaded clinical/research documents for condition-specific evidence.

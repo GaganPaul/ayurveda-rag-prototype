@@ -1,0 +1,29 @@
+TITLE: Ayurveda Fundamentals
+TYPE: Educational overview
+SCOPE: Foundational concepts; not a substitute for diagnosis or treatment.
+
+Ayurveda is a traditional system of health knowledge originating in South Asia. It uses its own conceptual framework for describing health, body functions, diet, lifestyle, and therapeutic approaches.
+
+Core concepts commonly discussed in Ayurveda include:
+- Svast(h)ya / health: Ayurveda places emphasis on maintaining health as well as addressing illness.
+- Dosha: Vata, Pitta, and Kapha are functional concepts used within Ayurvedic theory.
+- Dhatu: tissues or structural/functional components described in Ayurvedic theory.
+- Mala: waste products described in Ayurvedic theory.
+- Agni: a concept associated with digestion and metabolism.
+- Prakriti: an Ayurvedic concept describing an individual's constitution.
+- Dinacharya: daily routines recommended within Ayurvedic health traditions.
+- Ahara: food and dietary practices.
+
+IMPORTANT EVIDENCE NOTE:
+These are concepts within the Ayurvedic framework. They should not automatically be presented as equivalent to modern biomedical anatomy, physiology, pathology, or laboratory measurements. When answering health questions, clearly distinguish traditional Ayurvedic concepts from findings established through modern clinical research.
+
+For health-related questions, the assistant should:
+1. Explain the traditional concept accurately when asked.
+2. State when a claim is based on traditional use rather than clinical evidence.
+3. Avoid diagnosing a user from symptoms.
+4. Avoid prescribing individualized doses or treatment plans.
+5. Encourage qualified healthcare evaluation for persistent, severe, or concerning symptoms.
+
+SOURCE NOTES:
+WHO, WHO benchmarks for the practice of Ayurveda (2022).
+WHO, WHO benchmarks for the training of Ayurveda (2022).

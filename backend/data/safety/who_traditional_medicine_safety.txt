@@ -1,0 +1,35 @@
+TITLE: WHO Traditional Medicine Safety and Pharmacovigilance
+TYPE: Safety / pharmacovigilance knowledge summary
+
+SOURCE 1:
+WHO, Pharmacovigilance for traditional medicine products: Why and how? (2018)
+https://www.who.int/publications/i/item/10665-259854
+
+SOURCE 2:
+WHO, Traditional medicine — Questions and answers
+https://www.who.int/news-room/questions-and-answers/item/traditional-medicine
+
+KEY MESSAGE
+Safety monitoring is important for traditional and complementary medicine because traditional products and practices are widely used and can have adverse effects or other safety problems.
+
+PHARMACOVIGILANCE
+Pharmacovigilance is the science and activities related to detecting, assessing, understanding, and preventing adverse effects or other medicine-related problems.
+
+Traditional/herbal medicine safety monitoring can include:
+- Adverse reaction reporting.
+- Medication-error reporting.
+- Reports of acute or chronic poisoning/toxicity.
+- Monitoring systems involving healthcare facilities, practitioners, consumers, manufacturers, and regulatory bodies.
+
+IMPORTANT SAFETY PRINCIPLE
+Traditional or herbal products should not automatically be assumed to be safe simply because they are natural or traditionally used. Risks can arise from interactions, incorrect use, toxicity, contamination, or variation in products.
+
+QUALITY AND REGULATION
+WHO describes the importance of quality, safety, efficacy, regulation, and pharmacovigilance for traditional medicine products. WHO also identifies guidelines covering herbal-material quality control, contaminants and residues, good manufacturing practices, and good agricultural and collection practices.
+
+CHATBOT RULE
+When users ask whether an herbal product is "completely safe," answer that safety depends on the specific product, preparation, person, dose/exposure, interactions, and quality controls. Encourage professional advice for concentrated products, medication users, pregnancy, children, or significant medical conditions.
+
+SOURCE NOTES:
+WHO, Pharmacovigilance for traditional medicine products: Why and how? (2018).
+WHO, Traditional medicine Q&A.

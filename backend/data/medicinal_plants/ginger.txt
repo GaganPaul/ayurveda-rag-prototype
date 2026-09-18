@@ -1,0 +1,20 @@
+TITLE: Ginger (Zingiber officinale)
+TYPE: Botanical / traditional-use educational summary
+
+Ginger is a widely consumed food and spice and is also used in traditional health practices.
+
+TRADITIONAL USE:
+Ginger has been traditionally used in different cultures for digestive and other complaints.
+
+RESEARCH EVIDENCE:
+Clinical research has investigated ginger for outcomes such as nausea and vomiting and other conditions. Evidence should be interpreted by the specific condition, population, preparation, and dose rather than generalized to all health problems.
+
+SAFETY:
+Food-level use is different from concentrated supplements. Supplements can have adverse effects and may interact with medicines. People taking regular medication or preparing for a procedure should discuss concentrated ginger products with a healthcare professional when relevant.
+
+CHATBOT RULE:
+Do not present ginger as a universal treatment. State the specific evidence and its limitations when answering a condition-related question.
+
+SOURCE NOTES:
+WHO traditional-medicine safety guidance.
+Use uploaded clinical/research documents for specific claims.

@@ -1,0 +1,37 @@
+TITLE: WHO Benchmarks for the Practice of Ayurveda — Knowledge Base Summary
+SOURCE: World Health Organization, 2022
+DOCUMENT: WHO benchmarks for the practice of Ayurveda
+ISBN: 9789240042674
+SOURCE URL: https://www.who.int/publications/i/item/9789240042674
+
+PURPOSE
+The WHO benchmarks for the practice of Ayurveda provide minimum reference requirements for establishing and evaluating Ayurveda practice. They address safety, quality, qualified practice, regulation, and health data.
+
+MAIN AREAS
+The document covers:
+- Background and levels of Ayurveda practice.
+- Ayurveda health service providers.
+- Infrastructure and facilities.
+- Ayurveda health interventions.
+- Health products and medical devices used in practice.
+- Safety in Ayurveda practice.
+- Regulatory, legal, and ethical aspects.
+- Health data.
+
+SAFETY
+The benchmarks emphasize due care and risk management. Practitioners and support staff should have appropriate training and competency, maintain hygiene and sanitation, understand safe use of Ayurveda medicines, recognize potential adverse effects, and follow appropriate reporting procedures.
+
+EMERGENCIES AND REFERRAL
+The benchmarks describe the importance of emergency preparedness and the ability to recognize when timely referral to another or higher healthcare centre is needed.
+
+PRODUCT AND PRACTICE QUALITY
+Safe practice includes appropriate training, safe infrastructure, proper storage and management of medicines and devices, and procedures for hazards and emergencies.
+
+IMPORTANT INTERPRETATION
+This WHO document is a benchmark for practice and regulation. It does not constitute evidence that every Ayurvedic treatment is effective for every disease. The chatbot should use it primarily for practice-quality, safety, referral, and regulatory context.
+
+LICENSE / RIGHTS
+WHO states that the publication is available under CC BY-NC-SA 3.0 IGO. Verify the current license and attribution requirements before redistributing the original PDF.
+
+SOURCE URL:
+https://www.who.int/publications/i/item/9789240042674

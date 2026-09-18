@@ -1,0 +1,32 @@
+TITLE: CCRAS Clinical Research — Knowledge Base Summary
+TYPE: Research and evidence context
+
+SOURCE:
+Central Council for Research in Ayurvedic Sciences (CCRAS), Ministry of AYUSH, Government of India
+Clinical Research portal:
+https://ccras.nic.in/documents/clinical-research/
+
+PURPOSE
+CCRAS conducts and supports research related to Ayurvedic sciences. Its clinical-research work includes evaluation of interventions and generation/synthesis of evidence.
+
+RESEARCH APPROACHES
+The CCRAS clinical-research programme includes areas such as:
+- Clinical studies.
+- Observational research.
+- Randomized controlled studies.
+- Pharmacovigilance and safety monitoring.
+- Systematic reviews and evidence synthesis.
+- Evaluation of Ayurvedic interventions and formulations.
+
+HOW THE CHATBOT SHOULD USE THIS
+CCRAS materials can provide India-specific research context for Ayurveda. Individual studies should be interpreted according to their design, population, intervention, comparator, outcomes, sample size, limitations, and publication quality.
+
+EVIDENCE RULE
+The existence of a CCRAS research project does not by itself prove that an intervention is effective. The chatbot should report the actual evidence available in the uploaded source rather than converting research activity into a claim of efficacy.
+
+SAFETY
+Clinical evidence should be considered together with safety evidence. If a product has possible adverse effects or interactions, the chatbot should communicate that uncertainty rather than recommending self-treatment.
+
+SOURCE NOTES:
+CCRAS Clinical Research portal.
+CCRAS research and pharmacological research materials should be treated as primary institutional sources when available.

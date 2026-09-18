@@ -1,0 +1,51 @@
+# Environment files and local configuration
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Credentials, tokens, private keys, and certificates
+*credentials*
+*credential*
+*secret*
+*secrets*
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.jks
+service-account*.json
+*-service-account.json
+google-application-credentials.json
+firebase-adminsdk*.json
+
+# Local databases and runtime storage
+*.db
+*.sqlite
+*.sqlite3
+backend/uploads/
+backend/runtime/
+
+# Python
+backend/__pycache__/
+backend/.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node and build output
+node_modules/
+dist/
+.vite/
+
+# Logs and local OS/editor files
+*.log
+.DS_Store
+.AppleDouble
+.LSOverride
+.vscode/

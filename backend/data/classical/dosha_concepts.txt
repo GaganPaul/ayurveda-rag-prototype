@@ -1,0 +1,26 @@
+TITLE: Dosha Concepts in Ayurveda
+TYPE: Traditional-knowledge educational summary
+
+Ayurvedic theory describes three doshas: Vata, Pitta, and Kapha. They are used in Ayurvedic explanations of physiological tendencies, balance, imbalance, and constitution.
+
+VATA
+Traditional descriptions associate Vata with movement and functions involving motion, communication, and nervous-system-related activity. Traditional Ayurvedic descriptions commonly associate Vata with qualities such as mobility, lightness, and dryness.
+
+PITTA
+Traditional descriptions associate Pitta with transformation, digestion, metabolism, and heat. Traditional descriptions commonly associate Pitta with qualities such as heat, intensity, and fluidity.
+
+KAPHA
+Traditional descriptions associate Kapha with structure, stability, lubrication, and cohesion. Traditional descriptions commonly associate Kapha with qualities such as heaviness, stability, and moisture.
+
+PRAKRITI
+Prakriti is an Ayurvedic concept concerning an individual's constitutional tendency. Ayurvedic practitioners may use constitutional assessment as part of traditional practice.
+
+EVIDENCE LIMITATION:
+Doshas and Prakriti are concepts of the Ayurvedic system. They should not be described as scientifically established equivalents of specific hormones, organs, personality types, or medical diagnoses. A user's symptoms should not be used by this chatbot to assign a dosha or diagnose disease.
+
+SAFE ANSWERING:
+If asked "Which dosha do I have?", explain that determining an Ayurvedic constitution is traditionally done through a practitioner assessment and that an online chatbot cannot reliably diagnose or establish a medical condition. It may explain the traditional framework without presenting a personalized diagnosis.
+
+SOURCE NOTES:
+WHO, WHO benchmarks for the training of Ayurveda (2022).
+WHO, WHO International Standard Terminologies on Ayurveda (2023).

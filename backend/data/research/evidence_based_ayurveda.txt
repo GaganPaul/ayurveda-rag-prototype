@@ -1,0 +1,46 @@
+TITLE: Evidence-Based Ayurveda
+TYPE: Research-methodology and evidence-literacy document
+
+WHY EVIDENCE MATTERS
+Ayurveda contains a large body of traditional knowledge. When making health claims, it is important to distinguish historical/traditional use from evidence generated through modern research.
+
+EVIDENCE LEVELS
+1. Traditional knowledge and historical texts:
+   Useful for understanding how a practice or substance has been used traditionally. They do not by themselves establish modern clinical effectiveness or safety for every person.
+
+2. Laboratory / in-vitro research:
+   Can investigate biological mechanisms or chemical activity. Results from cells or laboratory systems cannot automatically be translated into clinical benefit in humans.
+
+3. Animal studies:
+   Can provide preliminary information about mechanisms, toxicity, and potential effects. Animal findings do not establish effectiveness in humans.
+
+4. Observational studies:
+   Can identify associations in real-world populations but are vulnerable to confounding and other biases. Association does not necessarily mean causation.
+
+5. Randomized controlled trials:
+   Can provide stronger evidence about causal effects under specified conditions, but results still depend on study quality, sample size, population, intervention, comparator, and outcomes.
+
+6. Systematic reviews and meta-analyses:
+   Can synthesize multiple studies. Their reliability depends on the quality and comparability of the included studies.
+
+IMPORTANT PRINCIPLES
+- A positive laboratory result does not prove a clinical treatment works.
+- A single small study does not establish a universal medical claim.
+- Statistical significance is not the same as clinical importance.
+- Evidence may apply only to a specific preparation, dose, population, and duration.
+- Different commercial herbal products may not be equivalent.
+- Safety evidence is separate from effectiveness evidence.
+
+CHATBOT ANSWERING RULE
+For each health claim, prefer this structure:
+A. What Ayurveda traditionally says.
+B. What research has studied.
+C. What the evidence actually supports.
+D. What remains uncertain.
+E. Relevant safety considerations.
+
+Do not manufacture citations or evidence. If the uploaded knowledge base does not contain enough evidence, say that the available sources are insufficient.
+
+SOURCE NOTES:
+WHO benchmarks for the practice of Ayurveda (2022).
+CCRAS clinical-research and evidence-oriented materials supplied by the user.

@@ -1,0 +1,20 @@
+TITLE: Turmeric (Curcuma longa)
+TYPE: Botanical / traditional-use educational summary
+
+Turmeric is a plant commonly used as a culinary spice and in traditional health practices. Curcumin is one of the best-known compounds studied in turmeric.
+
+TRADITIONAL USE:
+Turmeric has a long history of use in South Asian food and traditional practices. Traditional use should not be presented as proof that turmeric treats or cures a disease.
+
+RESEARCH EVIDENCE:
+Research on curcumin and turmeric preparations has investigated areas including inflammation, pain, metabolic health, and other conditions. Results depend on the preparation, dose, population, outcome measured, and study quality. Evidence for a supplement cannot automatically be applied to ordinary culinary turmeric.
+
+SAFETY:
+Concentrated supplements can differ substantially from food use. Potential adverse effects and interactions are possible. People taking medicines, especially medicines affecting bleeding or other physiological processes, or people with significant medical conditions should discuss concentrated turmeric/curcumin products with a qualified healthcare professional.
+
+CHATBOT RULE:
+Do not answer "turmeric cures X." Instead use wording such as: "Turmeric has traditional uses, and research has investigated X; evidence varies by condition and preparation."
+
+SOURCE NOTES:
+WHO general traditional-medicine safety guidance.
+Use the user's uploaded authoritative botanical/clinical documents for condition-specific evidence.

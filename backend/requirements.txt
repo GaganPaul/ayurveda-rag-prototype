@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+google-genai
+python-dotenv
+scikit-learn
+pypdf

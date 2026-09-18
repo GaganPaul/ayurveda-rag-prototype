@@ -1,0 +1,20 @@
+TITLE: Ashwagandha (Withania somnifera)
+TYPE: Botanical / traditional-use educational summary
+
+Ashwagandha (Withania somnifera) is a plant used in Ayurvedic traditions.
+
+TRADITIONAL USE:
+Ayurvedic traditions have used ashwagandha in preparations associated with general wellbeing and other traditional indications. Traditional use is not the same as proof of clinical effectiveness.
+
+RESEARCH EVIDENCE:
+Modern research has investigated standardized ashwagandha extracts for several outcomes, including stress-related measures, sleep, and exercise-related outcomes. Findings differ across studies and products, and evidence should be interpreted according to study design, sample size, preparation, dose, and duration.
+
+SAFETY:
+Herbal supplements can have adverse effects and can interact with medicines. Do not assume that "natural" means risk-free. People who are pregnant or breastfeeding, have significant liver or other medical conditions, or take prescription medicines should seek professional advice before using concentrated preparations.
+
+CHATBOT RULE:
+Never tell a user that ashwagandha definitely treats anxiety, insomnia, infertility, thyroid disease, cancer, or another medical condition. If the evidence is uncertain or condition-specific, say so.
+
+SOURCE NOTES:
+WHO traditional-medicine safety and pharmacovigilance guidance.
+Condition-specific evidence should be drawn from the user's uploaded research sources.
