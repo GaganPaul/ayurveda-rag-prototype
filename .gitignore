@@ -27,6 +27,8 @@ firebase-adminsdk*.json
 *.sqlite3
 backend/uploads/
 backend/runtime/
+backend/index_build_tmp/
+index_build_tmp/
 
 # Python
 backend/__pycache__/

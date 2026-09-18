@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "retrieval_type": "tfidf",
+  "created_at": "2026-09-18T16:47:36.136100+00:00",
+  "documents": 20,
+  "chunks": 1092,
+  "unique_sources": 20,
+  "matrix_shape": [
+    1092,
+    12000
+  ],
+  "vectorizer_params": {
+    "lowercase": true,
+    "stop_words": "english",
+    "ngram_range": [
+      1,
+      2
+    ],
+    "max_features": 12000
+  }
+}

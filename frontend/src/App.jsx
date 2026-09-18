@@ -209,9 +209,9 @@ export default function App() {
       if (!response.ok) throw new Error(data.detail || "Request failed");
       const completed = [...nextMessages, { role: "assistant", text: data.answer, citations: data.sources || [] }];
       setMessages(completed);
-      saveConversation(completed);
-    } catch {
-      const failed = [...nextMessages, { role: "assistant", text: "Something went wrong while processing your question. Please try again." }];
+    } catch (err) {
+      const errorMsg = err?.message || "The Ayurveda knowledge base is currently unavailable. Please try again shortly.";
+      const failed = [...nextMessages, { role: "assistant", text: errorMsg }];
       setMessages(failed);
       saveConversation(failed);
     } finally {

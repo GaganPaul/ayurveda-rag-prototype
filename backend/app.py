@@ -8,14 +8,19 @@ from pathlib import Path
 import threading
 from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from google import genai
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from pypdf import PdfReader
+
+from rag_index import (
+    atomic_reindex,
+    load_prebuilt_index,
+    validate_index,
+)
 
 # Configure server logging
 logging.basicConfig(
@@ -28,10 +33,13 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
+INDEX_DIR = BASE_DIR / "index"
+INDEX_BUILD_TMP_DIR = BASE_DIR / "index_build_tmp"
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")
 
 if not GEMINI_API_KEY:
     # The server can still start so /health works, but chat will return a clear error.
@@ -40,143 +48,102 @@ else:
     client = genai.Client(api_key=GEMINI_API_KEY)
 
 
-def _load_documents(data_dir: Path) -> list[dict[str, Any]]:
-    documents: list[dict[str, Any]] = []
-
-    if not data_dir.exists():
-        return documents
-
-    for path in sorted(data_dir.rglob("*")):
-        if not path.is_file():
-            continue
-
-        try:
-            suffix = path.suffix.lower()
-            if suffix == ".txt":
-                text = path.read_text(encoding="utf-8")
-                documents.append(
-                    {
-                        "name": path.name,
-                        "page": None,
-                        "text": text.strip(),
-                    }
-                )
-
-            elif suffix == ".pdf":
-                reader = PdfReader(str(path))
-                for page_number, page in enumerate(reader.pages, start=1):
-                    text = (page.extract_text() or "").strip()
-                    if text:
-                        documents.append(
-                            {
-                                "name": path.name,
-                                "page": page_number,
-                                "text": text,
-                            }
-                        )
-        except Exception as exc:
-            logger.warning("Could not load %s: %s", path, exc)
-
-    return [d for d in documents if d["text"]]
-
-
 class KnowledgeBase:
     """Manages knowledge-base documents and TF-IDF index with thread-safe access."""
 
-    def __init__(self, data_dir: Path):
+    def __init__(self, data_dir: Path, index_dir: Path, tmp_dir: Path):
         self.data_dir = data_dir
+        self.index_dir = index_dir
+        self.tmp_dir = tmp_dir
         self.documents: list[dict[str, Any]] = []
         self.vectorizer: Optional[TfidfVectorizer] = None
         self.matrix: Any = None
+        self.metadata: Optional[dict[str, Any]] = None
         self.index_ready: bool = False
         self.index_loading: bool = False
         self.index_error: Optional[str] = None
         self.documents_loaded: int = 0
         self._lock = threading.Lock()
 
-    def build_sync(self) -> None:
-        """Loads all documents and constructs the TF-IDF matrix.
-
-        Must be executed on a worker thread to keep the asyncio event loop unblocked.
+    def load_prebuilt(self) -> bool:
+        """Loads pre-built index files (chunks.json, vectorizer.joblib, tfidf_matrix.npz, metadata.json).
+        
+        Does NOT perform expensive PDF parsing or TF-IDF fitting on startup.
         """
         with self._lock:
             self.index_loading = True
             self.index_ready = False
             self.index_error = None
 
-        logger.info("Loading knowledge documents...")
+        logger.info("Loading pre-built RAG index from %s...", self.index_dir)
         try:
-            docs = _load_documents(self.data_dir)
-            logger.info("Loaded %d chunks.", len(docs))
-
-            if docs:
-                vec = TfidfVectorizer(
-                    lowercase=True,
-                    stop_words="english",
-                    ngram_range=(1, 2),
-                    max_features=12000,
-                )
-                mat = vec.fit_transform([d["text"] for d in docs])
-            else:
-                vec = None
-                mat = None
-
-            logger.info("TF-IDF index built successfully.")
-
-            # Atomically publish the completed index to shared state
+            docs, vec, mat, metadata = load_prebuilt_index(self.index_dir)
             with self._lock:
                 self.documents = docs
                 self.vectorizer = vec
                 self.matrix = mat
+                self.metadata = metadata
                 self.documents_loaded = len(docs)
                 self.index_ready = True
                 self.index_loading = False
                 self.index_error = None
 
-            logger.info("Knowledge-base indexing complete.")
-
+            logger.info("Pre-built RAG index loaded successfully (%d chunks).", len(docs))
+            return True
         except Exception as exc:
-            logger.exception("Knowledge-base indexing failed: %s", exc)
+            err_msg = str(exc)
+            logger.error(
+                "Pre-built RAG index not found or invalid: %s. Run scripts/build_index.py before deployment.",
+                err_msg,
+            )
             with self._lock:
-                self.index_error = "Knowledge base indexing failed"
+                self.documents = []
+                self.vectorizer = None
+                self.matrix = None
+                self.metadata = None
+                self.documents_loaded = 0
                 self.index_ready = False
                 self.index_loading = False
-                self.documents_loaded = 0
-                # FastAPI process remains running without crashing
+                self.index_error = f"Pre-built index unavailable: {err_msg}"
+            return False
+
+    def rebuild_sync(self) -> dict[str, Any]:
+        """Explicit on-demand reindex: extracts PDF/TXT files, fits TF-IDF, atomically saves, and reloads."""
+        with self._lock:
+            self.index_loading = True
+
+        try:
+            logger.info("Starting explicit knowledge-base rebuild...")
+            metadata = atomic_reindex(self.data_dir, self.index_dir, self.tmp_dir)
+            loaded = self.load_prebuilt()
+            if not loaded:
+                raise RuntimeError("Failed to load freshly built index.")
+            return metadata
+        except Exception as exc:
+            logger.exception("Explicit index rebuild failed: %s", exc)
+            with self._lock:
+                self.index_loading = False
+                if not self.index_ready:
+                    self.index_error = f"Rebuild failed: {exc}"
+            raise
 
 
-knowledge_base = KnowledgeBase(DATA_DIR)
+knowledge_base = KnowledgeBase(DATA_DIR, INDEX_DIR, INDEX_BUILD_TMP_DIR)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting FastAPI application...")
-    loop = asyncio.get_running_loop()
-
-    # Pre-set index loading state immediately at startup
-    with knowledge_base._lock:
-        knowledge_base.index_loading = True
-        knowledge_base.index_ready = False
-        knowledge_base.index_error = None
-
-    async def _async_build():
-        logger.info("Knowledge-base indexing started in background.")
-        try:
-            await loop.run_in_executor(None, knowledge_base.build_sync)
-        except Exception as exc:
-            logger.exception("Knowledge-base indexing background task failed: %s", exc)
-            with knowledge_base._lock:
-                knowledge_base.index_error = "Knowledge base indexing failed"
-                knowledge_base.index_loading = False
-                knowledge_base.index_ready = False
-
-    asyncio.create_task(_async_build())
+    logger.info("Loading pre-built RAG index...")
+    loaded = knowledge_base.load_prebuilt()
+    if not loaded:
+        logger.warning("Knowledge base started in degraded mode (pre-built index missing or invalid).")
     yield
 
 
 app = FastAPI(
     title="AyurVeda RAG Prototype",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 app.state.knowledge_base = knowledge_base
@@ -189,6 +156,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def verify_admin(
+    authorization: Optional[str] = Header(None),
+    x_admin_token: Optional[str] = Header(None),
+):
+    """Verifies ADMIN_TOKEN from X-Admin-Token or Authorization: Bearer <token>."""
+    token = x_admin_token
+    if not token and authorization:
+        parts = authorization.split()
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            token = parts[1]
+        else:
+            token = authorization
+
+    if not ADMIN_TOKEN or not token or token != ADMIN_TOKEN:
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized: invalid or missing admin token.",
+        )
 
 
 class ChatRequest(BaseModel):
@@ -266,7 +253,7 @@ def build_prompt(question: str, contexts: list[dict[str, Any]]) -> str:
     context_text = "\n\n".join(
         [
             f"SOURCE: {item['name']}"
-            + (f" | PAGE: {item['page']}" if item["page"] else "")
+            + (f" | PAGE: {item['page']}" if item.get("page") else "")
             + f"\n{item['text']}"
             for item in contexts
         ]
@@ -293,13 +280,16 @@ def health():
         index_loading = knowledge_base.index_loading
         documents_loaded = knowledge_base.documents_loaded
         index_error = knowledge_base.index_error
+        meta = knowledge_base.metadata
 
     data: dict[str, Any] = {
-        "status": "degraded" if index_error else "ok",
+        "status": "degraded" if (index_error or not index_ready) else "ok",
         "index_ready": index_ready,
         "index_loading": index_loading,
         "documents_loaded": documents_loaded,
         "gemini_configured": bool(GEMINI_API_KEY),
+        "index_type": "prebuilt_tfidf",
+        "index_version": meta.get("version", 1) if meta else None,
     }
     if index_error:
         data["index_error"] = index_error
@@ -327,6 +317,37 @@ def sources():
     }
 
 
+@app.post("/api/admin/reindex")
+def admin_reindex(authenticated: None = Depends(verify_admin)):
+    try:
+        metadata = knowledge_base.rebuild_sync()
+        return {
+            "status": "ok",
+            "message": "Knowledge base index rebuilt and reloaded successfully.",
+            "documents": metadata.get("documents"),
+            "chunks": metadata.get("chunks"),
+            "matrix_shape": metadata.get("matrix_shape"),
+            "created_at": metadata.get("created_at"),
+        }
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Reindex failed: {exc}",
+        )
+
+
+@app.get("/api/admin/status")
+def admin_status(authenticated: None = Depends(verify_admin)):
+    with knowledge_base._lock:
+        return {
+            "index_ready": knowledge_base.index_ready,
+            "index_loading": knowledge_base.index_loading,
+            "documents_loaded": knowledge_base.documents_loaded,
+            "index_error": knowledge_base.index_error,
+            "metadata": knowledge_base.metadata,
+        }
+
+
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
     if not request.message.strip():
@@ -340,13 +361,13 @@ def chat(request: ChatRequest):
     if is_loading:
         raise HTTPException(
             status_code=503,
-            detail="The Ayurveda knowledge base is still loading. Please try again in a few seconds.",
+            detail="The Ayurveda knowledge base is currently loading. Please try again shortly.",
         )
 
     if has_error or not is_ready:
         raise HTTPException(
             status_code=503,
-            detail="The Ayurveda knowledge base is temporarily unavailable.",
+            detail="The Ayurveda knowledge base is temporarily unavailable. Please try again shortly.",
         )
 
     if client is None:
@@ -374,7 +395,7 @@ def chat(request: ChatRequest):
     sources_list = [
         Source(
             name=item["name"],
-            page=item["page"],
+            page=item.get("page"),
             snippet=item["text"][:260].replace("\n", " "),
         )
         for item in contexts

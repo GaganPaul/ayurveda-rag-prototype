@@ -1,3 +1,4 @@
 .env
 __pycache__/
 *.pyc
+index_build_tmp/

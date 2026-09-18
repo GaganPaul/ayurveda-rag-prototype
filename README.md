@@ -166,9 +166,49 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Start FastAPI:
+---
+
+# 4. Building the RAG Index
+
+The backend uses a **pre-built TF-IDF index** architecture. Text extraction from PDFs and TF-IDF matrix fitting are done offline before deployment. Normal server startups load the pre-built index in milliseconds without running expensive PDF processing.
+
+To build or update the index locally:
 
 ```bash
+cd backend
+python scripts/build_index.py
+```
+
+This will:
+1. Process all `.txt` and `.pdf` files recursively in `backend/data/`.
+2. Extract text and create structured chunks.
+3. Fit the `TfidfVectorizer` (English stopwords, 1-2 n-grams, max 12,000 features).
+4. Save the pre-built index files into `backend/index/`:
+   - `chunks.json` (all chunks with page/source metadata)
+   - `vectorizer.joblib` (fitted vectorizer)
+   - `tfidf_matrix.npz` (sparse TF-IDF matrix)
+   - `metadata.json` (index statistics and build timestamp)
+5. Atomically verify and install the index.
+
+### Committing the Index to Git
+Because the total index size is compact (~3.8 MB for ~1,100 chunks), `backend/index/` is tracked in Git:
+
+```bash
+git add backend/index/
+git commit -m "chore: update pre-built RAG index"
+git push
+```
+
+Render will then deploy the pre-built index and boot instantly.
+
+---
+
+# 5. Start the FastAPI backend
+
+With the pre-built index in place, start FastAPI:
+
+```bash
+cd backend
 uvicorn app:app --reload
 ```
 
@@ -338,19 +378,28 @@ Avoid treating a traditional claim as equivalent to modern clinical evidence.
 
 # 9. Adding a new document
 
-Copy your document into:
+1. Copy your new `.txt` or text-based `.pdf` document into:
 
 ```text
 backend/data/
 ```
+(or any subfolder, such as `backend/data/classical/`, `backend/data/medicinal_plants/`, `backend/data/research/`, or `backend/data/safety/`).
 
-Then restart FastAPI:
+2. Rebuild the index offline:
 
 ```bash
-uvicorn app:app --reload
+cd backend
+python scripts/build_index.py
 ```
 
-The documents are loaded when the server starts.
+Alternatively, if the server is already running in production or staging, trigger an atomic reindex via the admin endpoint:
+
+```bash
+curl -X POST https://your-backend.onrender.com/api/admin/reindex \
+  -H "X-Admin-Token: YOUR_ADMIN_TOKEN"
+```
+
+3. Commit and push the updated `backend/index/` files to Git if deploying a new release.
 
 ---
 
@@ -383,16 +432,27 @@ For the first prototype, TF-IDF keeps:
 
 ---
 
-
 # 11. API endpoints
 
-## Health
+## Health Check
 
 ```http
 GET /health
+GET /api/health
 ```
 
-Returns service status and number of loaded documents.
+Returns server readiness, index status, and chunk count:
+```json
+{
+  "status": "ok",
+  "index_ready": true,
+  "index_loading": false,
+  "documents_loaded": 1092,
+  "gemini_configured": true,
+  "index_type": "prebuilt_tfidf",
+  "index_version": 1
+}
+```
 
 ## Sources
 
@@ -400,7 +460,25 @@ Returns service status and number of loaded documents.
 GET /api/sources
 ```
 
-Returns the documents currently loaded.
+Returns the list of documents and page/chunk counts currently indexed.
+
+## Admin Reindex (Protected)
+
+```http
+POST /api/admin/reindex
+Header: X-Admin-Token: <ADMIN_TOKEN>
+```
+
+Re-scans `backend/data/`, rebuilds the TF-IDF matrix in a temporary staging directory, validates it, atomically replaces `backend/index/`, and hot-reloads the knowledge base into memory without server restarts.
+
+## Admin Status (Protected)
+
+```http
+GET /api/admin/status
+Header: X-Admin-Token: <ADMIN_TOKEN>
+```
+
+Returns current index metadata, chunk counts, and memory state.
 
 ## Chat
 
