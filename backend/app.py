@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import asyncio
+from contextlib import asynccontextmanager
+import logging
 import os
 from pathlib import Path
+import threading
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
@@ -12,6 +16,13 @@ from google import genai
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from pypdf import PdfReader
+
+# Configure server logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("ayurveda_rag")
 
 load_dotenv()
 
@@ -28,7 +39,147 @@ if not GEMINI_API_KEY:
 else:
     client = genai.Client(api_key=GEMINI_API_KEY)
 
-app = FastAPI(title="AyurVeda RAG Prototype", version="0.1.0")
+
+def _load_documents(data_dir: Path) -> list[dict[str, Any]]:
+    documents: list[dict[str, Any]] = []
+
+    if not data_dir.exists():
+        return documents
+
+    for path in sorted(data_dir.rglob("*")):
+        if not path.is_file():
+            continue
+
+        try:
+            suffix = path.suffix.lower()
+            if suffix == ".txt":
+                text = path.read_text(encoding="utf-8")
+                documents.append(
+                    {
+                        "name": path.name,
+                        "page": None,
+                        "text": text.strip(),
+                    }
+                )
+
+            elif suffix == ".pdf":
+                reader = PdfReader(str(path))
+                for page_number, page in enumerate(reader.pages, start=1):
+                    text = (page.extract_text() or "").strip()
+                    if text:
+                        documents.append(
+                            {
+                                "name": path.name,
+                                "page": page_number,
+                                "text": text,
+                            }
+                        )
+        except Exception as exc:
+            logger.warning("Could not load %s: %s", path, exc)
+
+    return [d for d in documents if d["text"]]
+
+
+class KnowledgeBase:
+    """Manages knowledge-base documents and TF-IDF index with thread-safe access."""
+
+    def __init__(self, data_dir: Path):
+        self.data_dir = data_dir
+        self.documents: list[dict[str, Any]] = []
+        self.vectorizer: Optional[TfidfVectorizer] = None
+        self.matrix: Any = None
+        self.index_ready: bool = False
+        self.index_loading: bool = False
+        self.index_error: Optional[str] = None
+        self.documents_loaded: int = 0
+        self._lock = threading.Lock()
+
+    def build_sync(self) -> None:
+        """Loads all documents and constructs the TF-IDF matrix.
+
+        Must be executed on a worker thread to keep the asyncio event loop unblocked.
+        """
+        with self._lock:
+            self.index_loading = True
+            self.index_ready = False
+            self.index_error = None
+
+        logger.info("Loading knowledge documents...")
+        try:
+            docs = _load_documents(self.data_dir)
+            logger.info("Loaded %d chunks.", len(docs))
+
+            if docs:
+                vec = TfidfVectorizer(
+                    lowercase=True,
+                    stop_words="english",
+                    ngram_range=(1, 2),
+                    max_features=12000,
+                )
+                mat = vec.fit_transform([d["text"] for d in docs])
+            else:
+                vec = None
+                mat = None
+
+            logger.info("TF-IDF index built successfully.")
+
+            # Atomically publish the completed index to shared state
+            with self._lock:
+                self.documents = docs
+                self.vectorizer = vec
+                self.matrix = mat
+                self.documents_loaded = len(docs)
+                self.index_ready = True
+                self.index_loading = False
+                self.index_error = None
+
+            logger.info("Knowledge-base indexing complete.")
+
+        except Exception as exc:
+            logger.exception("Knowledge-base indexing failed: %s", exc)
+            with self._lock:
+                self.index_error = "Knowledge base indexing failed"
+                self.index_ready = False
+                self.index_loading = False
+                self.documents_loaded = 0
+                # FastAPI process remains running without crashing
+
+
+knowledge_base = KnowledgeBase(DATA_DIR)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting FastAPI application...")
+    loop = asyncio.get_running_loop()
+
+    # Pre-set index loading state immediately at startup
+    with knowledge_base._lock:
+        knowledge_base.index_loading = True
+        knowledge_base.index_ready = False
+        knowledge_base.index_error = None
+
+    async def _async_build():
+        logger.info("Knowledge-base indexing started in background.")
+        try:
+            await loop.run_in_executor(None, knowledge_base.build_sync)
+        except Exception as exc:
+            logger.exception("Knowledge-base indexing background task failed: %s", exc)
+            with knowledge_base._lock:
+                knowledge_base.index_error = "Knowledge base indexing failed"
+                knowledge_base.index_loading = False
+                knowledge_base.index_ready = False
+
+    asyncio.create_task(_async_build())
+    yield
+
+
+app = FastAPI(
+    title="AyurVeda RAG Prototype",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+app.state.knowledge_base = knowledge_base
 
 origins = ["*"] if FRONTEND_URL == "*" else [FRONTEND_URL]
 app.add_middleware(
@@ -56,61 +207,21 @@ class ChatResponse(BaseModel):
     sources: list[Source]
 
 
-def load_documents() -> list[dict[str, Any]]:
-    documents = []
-
-    if not DATA_DIR.exists():
-        return documents
-
-    for path in sorted(DATA_DIR.rglob("*")):
-        if not path.is_file():
-            continue
-
-        try:
-            if path.suffix.lower() == ".txt":
-                text = path.read_text(encoding="utf-8")
-                documents.append(
-                    {
-                        "name": path.name,
-                        "page": None,
-                        "text": text.strip(),
-                    }
-                )
-
-            elif path.suffix.lower() == ".pdf":
-                reader = PdfReader(str(path))
-                for page_number, page in enumerate(reader.pages, start=1):
-                    text = (page.extract_text() or "").strip()
-                    if text:
-                        documents.append(
-                            {
-                                "name": path.name,
-                                "page": page_number,
-                                "text": text,
-                            }
-                        )
-        except Exception as exc:
-            print(f"Could not load {path}: {exc}")
-
-    return [d for d in documents if d["text"]]
-
-
-DOCUMENTS = load_documents()
-vectorizer = TfidfVectorizer(
-    lowercase=True,
-    stop_words="english",
-    ngram_range=(1, 2),
-    max_features=12000,
-)
-MATRIX = vectorizer.fit_transform([d["text"] for d in DOCUMENTS]) if DOCUMENTS else None
-
-
 def retrieve(query: str, top_k: int = 4) -> list[dict[str, Any]]:
-    if not DOCUMENTS or MATRIX is None:
-        return []
+    with knowledge_base._lock:
+        if (
+            not knowledge_base.index_ready
+            or knowledge_base.vectorizer is None
+            or knowledge_base.matrix is None
+            or not knowledge_base.documents
+        ):
+            return []
+        docs = knowledge_base.documents
+        vec = knowledge_base.vectorizer
+        mat = knowledge_base.matrix
 
-    query_vector = vectorizer.transform([query])
-    scores = cosine_similarity(query_vector, MATRIX).flatten()
+    query_vector = vec.transform([query])
+    scores = cosine_similarity(query_vector, mat).flatten()
 
     ranked = scores.argsort()[::-1]
     results = []
@@ -120,7 +231,7 @@ def retrieve(query: str, top_k: int = 4) -> list[dict[str, Any]]:
         if score <= 0:
             continue
 
-        item = DOCUMENTS[index].copy()
+        item = docs[index].copy()
         item["score"] = score
         results.append(item)
 
@@ -177,17 +288,33 @@ Answer the user's question helpfully. Use retrieved context first. For general t
 @app.get("/health")
 @app.get("/api/health")
 def health():
-    return {
-        "status": "ok",
-        "documents_loaded": len(DOCUMENTS),
+    with knowledge_base._lock:
+        index_ready = knowledge_base.index_ready
+        index_loading = knowledge_base.index_loading
+        documents_loaded = knowledge_base.documents_loaded
+        index_error = knowledge_base.index_error
+
+    data: dict[str, Any] = {
+        "status": "degraded" if index_error else "ok",
+        "index_ready": index_ready,
+        "index_loading": index_loading,
+        "documents_loaded": documents_loaded,
         "gemini_configured": bool(GEMINI_API_KEY),
     }
+    if index_error:
+        data["index_error"] = index_error
+    return data
 
 
 @app.get("/api/sources")
 def sources():
-    unique = {}
-    for item in DOCUMENTS:
+    with knowledge_base._lock:
+        if not knowledge_base.index_ready:
+            return {"documents": []}
+        docs = knowledge_base.documents
+
+    unique: dict[str, int] = {}
+    for item in docs:
         key = item["name"]
         unique.setdefault(key, 0)
         unique[key] += 1
@@ -205,6 +332,23 @@ def chat(request: ChatRequest):
     if not request.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
 
+    with knowledge_base._lock:
+        is_loading = knowledge_base.index_loading
+        has_error = knowledge_base.index_error is not None
+        is_ready = knowledge_base.index_ready
+
+    if is_loading:
+        raise HTTPException(
+            status_code=503,
+            detail="The Ayurveda knowledge base is still loading. Please try again in a few seconds.",
+        )
+
+    if has_error or not is_ready:
+        raise HTTPException(
+            status_code=503,
+            detail="The Ayurveda knowledge base is temporarily unavailable.",
+        )
+
     if client is None:
         raise HTTPException(
             status_code=500,
@@ -221,13 +365,13 @@ def chat(request: ChatRequest):
         )
         answer = (response.text or "").strip()
     except Exception as exc:
-        print(f"Gemini request failed: {exc}")
+        logger.error("Gemini request failed: %s", exc)
         raise HTTPException(
             status_code=502,
             detail="Gemini could not generate a response. Check the API key, model and quota.",
         )
 
-    sources = [
+    sources_list = [
         Source(
             name=item["name"],
             page=item["page"],
@@ -236,4 +380,4 @@ def chat(request: ChatRequest):
         for item in contexts
     ]
 
-    return ChatResponse(answer=answer, sources=sources)
+    return ChatResponse(answer=answer, sources=sources_list)
