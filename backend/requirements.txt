@@ -4,3 +4,4 @@ google-genai
 python-dotenv
 scikit-learn
 pypdf
+fonttools
