@@ -330,6 +330,11 @@ function AuthOrLanding({ mode, setView, setAuthMode, form, setForm, error, onSub
           <small className="demo-note">
             Secure authentication powered by Supabase. You may need to confirm your email.
           </small>
+          <div className="auth-aux-actions">
+            <button type="button" className="guest-demo-btn" onClick={onGuestDemo}>
+              Or explore instantly as a guest →
+            </button>
+          </div>
         </form>
       </div>
     </div>
