@@ -1209,6 +1209,19 @@ nav {
   border: 1px solid rgba(27, 75, 57, 0.12);
 }
 
+.error-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #b91c1c;
+  background: #fef2f2;
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(185, 28, 28, 0.2);
+}
+
 .badge-spark {
   font-size: 10px;
 }
@@ -1387,6 +1400,21 @@ nav {
   border-color: var(--green);
   transform: translateY(-1px);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.tool-btn.retry-btn {
+  color: var(--green);
+  border-color: rgba(27, 75, 57, 0.25);
+}
+
+.tool-btn.retry-btn:hover {
+  background: var(--mint);
+  border-color: var(--green);
+}
+
+.message-row.assistant.message-error .message-bubble {
+  border-left: 3px solid #ef4444;
+  background: #fffafa;
 }
 
 .evidence-label {
@@ -1924,6 +1952,17 @@ nav {
   color: #e6ede6;
   border-color: #2c3f35;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme='dark'] .error-badge {
+  background: #3b1818;
+  color: #fca5a5;
+  border-color: #5c2424;
+}
+
+:root[data-theme='dark'] .message-row.assistant.message-error .message-bubble {
+  background: #251a1a;
+  border-left-color: #ef4444;
 }
 
 :root[data-theme='dark'] .tool-btn {

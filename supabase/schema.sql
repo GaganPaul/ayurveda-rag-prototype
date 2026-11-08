@@ -24,6 +24,7 @@ create policy "Users manage their messages" on public.messages for all
   with check (auth.uid() = user_id and exists (select 1 from public.conversations where id = conversation_id and user_id = auth.uid()));
 create index conversations_user_updated_idx on public.conversations(user_id, updated_at desc);
 create index messages_conversation_created_idx on public.messages(conversation_id, created_at);
+create index messages_conversation_created_id_idx on public.messages(conversation_id, created_at asc, id asc);
 
 create or replace function public.delete_my_account()
 returns void

@@ -28,7 +28,7 @@ function formatConversationTitle(text) {
 function FormattedAnswerPrimary({ text }) {
   return (
     <div className="formatted-answer">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{text || ""}</ReactMarkdown>
     </div>
   );
 }
