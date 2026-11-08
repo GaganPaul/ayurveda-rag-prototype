@@ -911,7 +911,7 @@ export default function App() {
             )}
           </button>
 
-          <div className="profile-wrap">
+          <div className="profile-wrap" ref={profileWrapRef}>
             <button
               className="user-chip profile-trigger"
               onClick={() => setProfileOpen((open) => !open)}
@@ -1013,6 +1013,7 @@ export default function App() {
               input={input}
               setInput={setInput}
               ask={ask}
+              regenerate={regenerate}
               startNewChat={startNewChat}
               copyAnswer={copyAnswer}
               copied={copied}
