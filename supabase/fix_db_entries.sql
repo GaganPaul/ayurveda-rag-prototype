@@ -56,3 +56,4 @@ $$;
 
 REVOKE EXECUTE ON FUNCTION public.cleanup_empty_conversations() FROM public, anon;
 GRANT EXECUTE ON FUNCTION public.cleanup_empty_conversations() TO authenticated;
+
