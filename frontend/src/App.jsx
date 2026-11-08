@@ -377,7 +377,7 @@ export default function App() {
   const filteredConversations = useMemo(
     () =>
       conversations.filter((conversation) =>
-        `${conversation.title} ${conversation.messages.map((message) => message.text).join(" ")}`
+        `${conversation.title || ""} ${(conversation.messages || []).map((message) => message.text || "").join(" ")}`
           .toLowerCase()
           .includes(historySearch.toLowerCase())
       ),
