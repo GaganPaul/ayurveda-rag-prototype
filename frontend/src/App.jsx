@@ -1035,17 +1035,32 @@ function ChatView({
   input,
   setInput,
   ask,
+  regenerate,
   startNewChat,
   copyAnswer,
   copied,
   answerScale,
   setAnswerScale
 }) {
-  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const textareaRef = useRef(null);
+  const isFirstRender = useRef(true);
+
+  // Smoothly scroll the messages container without jittering the page/viewport
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    if (isFirstRender.current) {
+      container.scrollTop = container.scrollHeight;
+      isFirstRender.current = false;
+    } else {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    }
+  }, [messages, loading]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+    isFirstRender.current = true;
+  }, [activeConversation?.id]);
 
   const hasMessages = messages.length > 0;
 
@@ -1110,7 +1125,11 @@ function ChatView({
         </div>
       </div>
 
-      <div className="messages" style={{ "--answer-scale": answerScale }}>
+      <div
+        className="messages"
+        ref={messagesContainerRef}
+        style={{ "--answer-scale": answerScale }}
+      >
         {!hasMessages && (
           <div className="welcome-panel">
             <div className="welcome-orbit">✦</div>
@@ -1134,89 +1153,102 @@ function ChatView({
           </div>
         )}
 
-        {messages.map((message, index) => (
-          <div
-            className={`message-row ${message.role}`}
-            key={`${message.text.slice(0, 20)}-${index}`}
-          >
+        {messages.map((message, index) => {
+          const msgKey = message.id || `msg-${message.role}-${index}`;
+          return (
             <div
-              className={`avatar ${message.role === "user" ? "user-avatar-badge" : "assistant-avatar"}`}
+              className={`message-row ${message.role}${message.isError ? " message-error" : ""}`}
+              key={msgKey}
             >
-              {message.role === "user" ? displayName[0]?.toUpperCase() : "✦"}
-            </div>
+              <div
+                className={`avatar ${message.role === "user" ? "user-avatar-badge" : "assistant-avatar"}`}
+              >
+                {message.role === "user" ? displayName[0]?.toUpperCase() : "✦"}
+              </div>
 
-            <div className="message-content">
-              <div className="message-header-row">
-                <span className="message-label">
-                  {message.role === "user" ? "You" : "AyurVeda assistant"}
-                </span>
+              <div className="message-content">
+                <div className="message-header-row">
+                  <span className="message-label">
+                    {message.role === "user" ? "You" : "AyurVeda assistant"}
+                  </span>
+                  {message.role === "assistant" && (
+                    message.isError ? (
+                      <span className="error-badge">
+                        <span>⚠️</span> Connection notice
+                      </span>
+                    ) : (
+                      <span className="grounded-badge">
+                        <span className="badge-spark">✦</span> Grounded in sources
+                      </span>
+                    )
+                  )}
+                </div>
+
+                <div className="message-bubble">
+                  {message.role === "assistant" ? (
+                    <FormattedAnswerPrimary text={message.text} />
+                  ) : (
+                    <div className="user-message-text">{message.text}</div>
+                  )}
+                </div>
+
                 {message.role === "assistant" && (
-                  <span className="grounded-badge">
-                    <span className="badge-spark">✦</span> Grounded in sources
-                  </span>
-                )}
-              </div>
-
-              <div className="message-bubble">
-                {message.role === "assistant" ? (
-                  <FormattedAnswerPrimary text={message.text} />
-                ) : (
-                  <div className="user-message-text">{message.text}</div>
-                )}
-              </div>
-
-              {message.role === "assistant" && (
-                <div className="message-tools">
-                  <button
-                    type="button"
-                    className="tool-btn"
-                    onClick={() => copyAnswer(message.text, index)}
-                    title="Copy answer"
-                  >
-                    <span>{copied === index ? "✓" : "📋"}</span>
-                    <span>{copied === index ? "Copied" : "Copy"}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="tool-btn"
-                    onClick={() => ask(messages[index - 1]?.text || "")}
-                    title="Regenerate response"
-                  >
-                    <span>↻</span>
-                    <span>Regenerate</span>
-                  </button>
-                  <span className="evidence-label">
-                    {message.citations?.length
-                      ? `✦ ${message.citations.length} sources cited`
-                      : "Educational synthesis"}
-                  </span>
-                </div>
-              )}
-
-              {message.citations?.length > 0 && (
-                <div className="citations">
-                  <div className="citation-title">
-                    <span>✦</span> Sources used in this answer
+                  <div className="message-tools">
+                    {!message.isError && (
+                      <button
+                        type="button"
+                        className="tool-btn"
+                        onClick={() => copyAnswer(message.text, index)}
+                        title="Copy answer"
+                      >
+                        <span>{copied === index ? "✓" : "📋"}</span>
+                        <span>{copied === index ? "Copied" : "Copy"}</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className={`tool-btn${message.isError ? " retry-btn" : ""}`}
+                      onClick={() => regenerate(index)}
+                      title={message.isError ? "Retry inquiry" : "Regenerate response"}
+                    >
+                      <span>↻</span>
+                      <span>{message.isError ? "Retry" : "Regenerate"}</span>
+                    </button>
+                    <span className="evidence-label">
+                      {message.isError
+                        ? "⚠️ Temporary notice"
+                        : message.citations?.length
+                        ? `✦ ${message.citations.length} source${message.citations.length === 1 ? "" : "s"} cited`
+                        : "Educational synthesis"}
+                    </span>
                   </div>
-                  <div className="citations-container">
-                    {message.citations.map((source, sourceIndex) => (
-                      <div className="citation-card" key={`${source.name}-${sourceIndex}`}>
-                        <div className="citation-header">
-                          <span className="source-index">{sourceIndex + 1}</span>
-                          <strong className="source-name">{source.name}</strong>
-                          {source.page && (
-                            <span className="source-page">Page {source.page}</span>
-                          )}
+                )}
+
+                {!message.isError && message.citations?.length > 0 && (
+                  <div className="citations">
+                    <div className="citation-title">
+                      <span>✦</span> Sources used in this answer
+                    </div>
+                    <div className="citations-container">
+                      {message.citations.map((source, sourceIndex) => (
+                        <div className="citation-card" key={`${source.name}-${sourceIndex}`}>
+                          <div className="citation-header">
+                            <span className="source-index">{sourceIndex + 1}</span>
+                            <strong className="source-name">{source.name}</strong>
+                            {source.page && (
+                              <span className="source-page">Page {source.page}</span>
+                            )}
+                          </div>
+                          <p className="citation-snippet">{source.snippet}</p>
                         </div>
-                        <p className="citation-snippet">{source.snippet}</p>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {loading && (
           <div className="message-row assistant loading-row">
@@ -1236,8 +1268,6 @@ function ChatView({
             </div>
           </div>
         )}
-
-        <div ref={messagesEndRef} className="messages-bottom-anchor" />
       </div>
 
       <div className="composer-container">
@@ -1245,15 +1275,28 @@ function ChatView({
           className="composer"
           onSubmit={(event) => {
             event.preventDefault();
+            if (textareaRef.current) {
+              textareaRef.current.style.height = "auto";
+            }
             ask();
           }}
         >
           <textarea
+            ref={textareaRef}
             value={input}
-            onChange={(event) => setInput(event.target.value)}
+            onChange={(event) => {
+              setInput(event.target.value);
+              if (textareaRef.current) {
+                textareaRef.current.style.height = "auto";
+                textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
+              }
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
+                if (textareaRef.current) {
+                  textareaRef.current.style.height = "auto";
+                }
                 ask();
               }
             }}
