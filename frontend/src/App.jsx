@@ -186,6 +186,9 @@ function AuthOrLanding({ mode, setView, setAuthMode, form, setForm, error, onSub
             </span>
           </button>
           <div className="landing-nav-actions">
+            <button className="guest-demo-link" onClick={onGuestDemo}>
+              Guest demo <span>↗</span>
+            </button>
             <button
               className="sign-in-link"
               onClick={() => {
