@@ -28,7 +28,7 @@ function formatConversationTitle(text) {
 function FormattedAnswerPrimary({ text }) {
   return (
     <div className="formatted-answer">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{text || ""}</ReactMarkdown>
     </div>
   );
 }
@@ -186,6 +186,9 @@ function AuthOrLanding({ mode, setView, setAuthMode, form, setForm, error, onSub
             </span>
           </button>
           <div className="landing-nav-actions">
+            <button className="guest-demo-link" onClick={onGuestDemo}>
+              Guest demo <span>↗</span>
+            </button>
             <button
               className="sign-in-link"
               onClick={() => {
@@ -327,6 +330,11 @@ function AuthOrLanding({ mode, setView, setAuthMode, form, setForm, error, onSub
           <small className="demo-note">
             Secure authentication powered by Supabase. You may need to confirm your email.
           </small>
+          <div className="auth-aux-actions">
+            <button type="button" className="guest-demo-btn" onClick={onGuestDemo}>
+              Or explore instantly as a guest →
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -351,6 +359,23 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [answerScale, setAnswerScale] = useState(1);
 
+  const activeIdRef = useRef(activeId);
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
+
+  const profileWrapRef = useRef(null);
+  useEffect(() => {
+    if (!profileOpen) return;
+    function handleClickOutside(event) {
+      if (profileWrapRef.current && !profileWrapRef.current.contains(event.target)) {
+        setProfileOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [profileOpen]);
+
   const displayName =
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0]?.replace(/[._-]+/g, " ") ||
@@ -360,7 +385,7 @@ export default function App() {
   const filteredConversations = useMemo(
     () =>
       conversations.filter((conversation) =>
-        `${conversation.title} ${conversation.messages.map((message) => message.text).join(" ")}`
+        `${conversation.title || ""} ${(conversation.messages || []).map((message) => message.text || "").join(" ")}`
           .toLowerCase()
           .includes(historySearch.toLowerCase())
       ),
@@ -377,7 +402,12 @@ export default function App() {
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null);
-      if (!session) setConversations([]);
+      if (!session) {
+        setConversations([]);
+        setActiveId(null);
+        activeIdRef.current = null;
+        setMessages([]);
+      }
     });
     return () => {
       mounted = false;
@@ -387,31 +417,68 @@ export default function App() {
 
   useEffect(() => {
     if (!user || !supabase || user.id === "demo-guest") return;
+    let cancelled = false;
+
     supabase
       .from("conversations")
       .select("id,title,updated_at,messages(id,role,content,citations,created_at)")
       .order("updated_at", { ascending: false })
       .then(({ data, error }) => {
+        if (cancelled) return;
         if (error) {
           console.error("Conversation load failed", error);
           return;
         }
-        setConversations(
-          (data || []).map((conversation) => ({
+
+        const validConversations = [];
+        const emptyConversationIds = [];
+
+        for (const conversation of data || []) {
+          const rawMsgs = conversation.messages || [];
+          if (!rawMsgs || rawMsgs.length === 0) {
+            emptyConversationIds.push(conversation.id);
+            continue;
+          }
+
+          const sortedMsgs = [...rawMsgs]
+            .sort((a, b) => {
+              const diff = new Date(a.created_at) - new Date(b.created_at);
+              if (diff !== 0) return diff;
+              return (Number(a.id) || 0) - (Number(b.id) || 0);
+            })
+            .map((message) => ({
+              id: message.id,
+              role: message.role,
+              text: message.content || "",
+              citations: Array.isArray(message.citations) ? message.citations : [],
+              createdAt: message.created_at
+            }));
+
+          validConversations.push({
             id: conversation.id,
-            title: conversation.title,
+            title: conversation.title || "Ayurveda inquiry",
             updatedAt: conversation.updated_at,
-            messages: (conversation.messages || [])
-              .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-              .map((message) => ({
-                role: message.role,
-                text: message.content,
-                citations: message.citations || []
-              }))
-          }))
-        );
+            messages: sortedMsgs
+          });
+        }
+
+        setConversations(validConversations);
+
+        if (emptyConversationIds.length > 0) {
+          supabase
+            .from("conversations")
+            .delete()
+            .in("id", emptyConversationIds)
+            .then(({ error: delErr }) => {
+              if (delErr) console.warn("Cleanup of empty conversations failed", delErr);
+            });
+        }
       });
-  }, [user]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     localStorage.setItem(THEME_KEY, theme);
@@ -425,50 +492,9 @@ export default function App() {
       .catch(() => {});
   }, []);
 
-  function saveConversation(nextMessages, id = activeId) {
-    const conversationId = id || crypto.randomUUID();
-    const firstUserMsg = nextMessages.find((message) => message.role === "user")?.text;
-    const title = formatConversationTitle(firstUserMsg);
-    const updatedAt = new Date().toISOString();
-    setActiveId(conversationId);
-    setConversations((current) => {
-      const next = {
-        id: conversationId,
-        title: current.find((item) => item.id === conversationId)?.title || title,
-        messages: nextMessages,
-        updatedAt
-      };
-      return current.some((item) => item.id === conversationId)
-        ? current.map((item) => (item.id === conversationId ? next : item))
-        : [next, ...current];
-    });
-
-    if (!supabase || !user || user.id === "demo-guest") return;
-    supabase
-      .from("conversations")
-      .upsert({ id: conversationId, user_id: user.id, title, updated_at: updatedAt })
-      .then(({ error }) => {
-        if (error) console.error("Conversation save failed", error);
-      });
-    const latest = nextMessages[nextMessages.length - 1];
-    if (latest) {
-      supabase
-        .from("messages")
-        .insert({
-          conversation_id: conversationId,
-          user_id: user.id,
-          role: latest.role,
-          content: latest.text,
-          citations: latest.citations || []
-        })
-        .then(({ error }) => {
-          if (error) console.error("Message save failed", error);
-        });
-    }
-  }
-
   function startNewChat() {
     setActiveId(null);
+    activeIdRef.current = null;
     setMessages([]);
     setInput("");
     setView("chat");
@@ -476,6 +502,7 @@ export default function App() {
 
   function openConversation(conversation) {
     setActiveId(conversation.id);
+    activeIdRef.current = conversation.id;
     setMessages(conversation.messages);
     setView("chat");
   }
@@ -491,7 +518,11 @@ export default function App() {
           if (error) console.error("Conversation delete failed", error);
         });
     }
-    if (id === activeId) startNewChat();
+    if (id === activeIdRef.current) {
+      setActiveId(null);
+      activeIdRef.current = null;
+      setMessages([]);
+    }
   }
 
   async function submitAuth(event) {
@@ -573,11 +604,73 @@ export default function App() {
   async function ask(question = input) {
     const text = question.trim();
     if (!text || loading) return;
-    const nextMessages = [...messages, { role: "user", text }];
+
+    // Use current activeId or generate a single new conversationId
+    const conversationId = activeIdRef.current || crypto.randomUUID();
+    if (!activeIdRef.current) {
+      setActiveId(conversationId);
+      activeIdRef.current = conversationId;
+    }
+
+    const userMsg = {
+      id: crypto.randomUUID(),
+      role: "user",
+      text,
+      citations: [],
+      createdAt: new Date().toISOString()
+    };
+
+    const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
-    saveConversation(nextMessages);
     setInput("");
     setLoading(true);
+
+    const firstUserMsg = nextMessages.find((m) => m.role === "user")?.text;
+    const title = formatConversationTitle(firstUserMsg);
+    const updatedAt = new Date().toISOString();
+
+    setConversations((current) => {
+      const existing = current.find((item) => item.id === conversationId);
+      const updated = {
+        id: conversationId,
+        title: existing?.title || title,
+        messages: nextMessages,
+        updatedAt
+      };
+      return existing
+        ? current.map((item) => (item.id === conversationId ? updated : item))
+        : [updated, ...current];
+    });
+
+    if (supabase && user && user.id !== "demo-guest") {
+      try {
+        const { error: convErr } = await supabase
+          .from("conversations")
+          .upsert({ id: conversationId, user_id: user.id, title, updated_at: updatedAt });
+        if (convErr) console.error("Conversation upsert failed", convErr);
+
+        const { data: dbMsg, error: msgErr } = await supabase
+          .from("messages")
+          .insert({
+            conversation_id: conversationId,
+            user_id: user.id,
+            role: "user",
+            content: text,
+            citations: []
+          })
+          .select("id,created_at")
+          .single();
+        if (msgErr) {
+          console.error("User message insert failed", msgErr);
+        } else if (dbMsg?.id) {
+          userMsg.id = dbMsg.id;
+          userMsg.createdAt = dbMsg.created_at;
+        }
+      } catch (dbEx) {
+        console.error("Supabase user message save error", dbEx);
+      }
+    }
+
     try {
       const response = await fetch(`${API_URL}/api/chat`, {
         method: "POST",
@@ -586,18 +679,183 @@ export default function App() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || "Request failed");
-      const completed = [
-        ...nextMessages,
-        { role: "assistant", text: data.answer, citations: data.sources || [] }
-      ];
+
+      const assistantMsg = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: data.answer,
+        citations: data.sources || [],
+        createdAt: new Date().toISOString()
+      };
+
+      const completed = [...nextMessages, assistantMsg];
       setMessages(completed);
-      saveConversation(completed);
+
+      const completedUpdatedAt = new Date().toISOString();
+      setConversations((current) => {
+        const existing = current.find((item) => item.id === conversationId);
+        const updated = {
+          id: conversationId,
+          title: existing?.title || title,
+          messages: completed,
+          updatedAt: completedUpdatedAt
+        };
+        return existing
+          ? current.map((item) => (item.id === conversationId ? updated : item))
+          : [updated, ...current];
+      });
+
+      if (supabase && user && user.id !== "demo-guest") {
+        try {
+          await supabase
+            .from("conversations")
+            .update({ updated_at: completedUpdatedAt })
+            .eq("id", conversationId);
+
+          const { data: dbMsg, error: asstErr } = await supabase
+            .from("messages")
+            .insert({
+              conversation_id: conversationId,
+              user_id: user.id,
+              role: "assistant",
+              content: data.answer,
+              citations: data.sources || []
+            })
+            .select("id,created_at")
+            .single();
+          if (asstErr) {
+            console.error("Assistant message insert failed", asstErr);
+          } else if (dbMsg?.id) {
+            assistantMsg.id = dbMsg.id;
+            assistantMsg.createdAt = dbMsg.created_at;
+          }
+        } catch (dbEx) {
+          console.error("Supabase assistant message save error", dbEx);
+        }
+      }
     } catch (err) {
       const errorMsg =
         err?.message || "The Ayurveda knowledge base is currently unavailable. Please try again shortly.";
-      const failed = [...nextMessages, { role: "assistant", text: errorMsg }];
+      const failedMsg = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: errorMsg,
+        isError: true,
+        citations: [],
+        createdAt: new Date().toISOString()
+      };
+      const failed = [...nextMessages, failedMsg];
       setMessages(failed);
-      saveConversation(failed);
+
+      setConversations((current) => {
+        const existing = current.find((item) => item.id === conversationId);
+        const updated = {
+          id: conversationId,
+          title: existing?.title || title,
+          messages: failed,
+          updatedAt: new Date().toISOString()
+        };
+        return existing
+          ? current.map((item) => (item.id === conversationId ? updated : item))
+          : [updated, ...current];
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function regenerate(index) {
+    if (loading) return;
+    const assistantMsg = messages[index];
+    const userMsg = messages[index - 1];
+    if (!userMsg || assistantMsg?.role !== "assistant") return;
+
+    const conversationId = activeIdRef.current;
+    if (!conversationId) return;
+
+    const trimmedMessages = messages.slice(0, index);
+    setMessages(trimmedMessages);
+    setLoading(true);
+
+    if (supabase && user && user.id !== "demo-guest" && assistantMsg.id && !assistantMsg.isError) {
+      try {
+        await supabase.from("messages").delete().eq("id", assistantMsg.id);
+      } catch (e) {
+        console.error("Failed to delete regenerated message from Supabase", e);
+      }
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMsg.text, top_k: 4 })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Request failed");
+
+      const newAssistantMsg = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: data.answer,
+        citations: data.sources || [],
+        createdAt: new Date().toISOString()
+      };
+
+      const completed = [...trimmedMessages, newAssistantMsg];
+      setMessages(completed);
+
+      const completedUpdatedAt = new Date().toISOString();
+      setConversations((current) => {
+        const existing = current.find((item) => item.id === conversationId);
+        const updated = {
+          id: conversationId,
+          title: existing?.title || formatConversationTitle(userMsg.text),
+          messages: completed,
+          updatedAt: completedUpdatedAt
+        };
+        return current.map((item) => (item.id === conversationId ? updated : item));
+      });
+
+      if (supabase && user && user.id !== "demo-guest") {
+        try {
+          await supabase
+            .from("conversations")
+            .update({ updated_at: completedUpdatedAt })
+            .eq("id", conversationId);
+
+          const { data: dbMsg, error: insertErr } = await supabase
+            .from("messages")
+            .insert({
+              conversation_id: conversationId,
+              user_id: user.id,
+              role: "assistant",
+              content: data.answer,
+              citations: data.sources || []
+            })
+            .select("id,created_at")
+            .single();
+          if (!insertErr && dbMsg?.id) {
+            newAssistantMsg.id = dbMsg.id;
+            newAssistantMsg.createdAt = dbMsg.created_at;
+          }
+        } catch (dbEx) {
+          console.error("Supabase error saving regenerated message", dbEx);
+        }
+      }
+    } catch (err) {
+      const errorMsg =
+        err?.message || "The Ayurveda knowledge base is currently unavailable. Please try again shortly.";
+      const failedMsg = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: errorMsg,
+        isError: true,
+        citations: [],
+        createdAt: new Date().toISOString()
+      };
+      const failed = [...trimmedMessages, failedMsg];
+      setMessages(failed);
     } finally {
       setLoading(false);
     }
@@ -661,7 +919,7 @@ export default function App() {
             )}
           </button>
 
-          <div className="profile-wrap">
+          <div className="profile-wrap" ref={profileWrapRef}>
             <button
               className="user-chip profile-trigger"
               onClick={() => setProfileOpen((open) => !open)}
@@ -763,6 +1021,7 @@ export default function App() {
               input={input}
               setInput={setInput}
               ask={ask}
+              regenerate={regenerate}
               startNewChat={startNewChat}
               copyAnswer={copyAnswer}
               copied={copied}
@@ -784,17 +1043,32 @@ function ChatView({
   input,
   setInput,
   ask,
+  regenerate,
   startNewChat,
   copyAnswer,
   copied,
   answerScale,
   setAnswerScale
 }) {
-  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const textareaRef = useRef(null);
+  const isFirstRender = useRef(true);
+
+  // Smoothly scroll the messages container without jittering the page/viewport
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    if (isFirstRender.current) {
+      container.scrollTop = container.scrollHeight;
+      isFirstRender.current = false;
+    } else {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    }
+  }, [messages, loading]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+    isFirstRender.current = true;
+  }, [activeConversation?.id]);
 
   const hasMessages = messages.length > 0;
 
@@ -859,7 +1133,11 @@ function ChatView({
         </div>
       </div>
 
-      <div className="messages" style={{ "--answer-scale": answerScale }}>
+      <div
+        className="messages"
+        ref={messagesContainerRef}
+        style={{ "--answer-scale": answerScale }}
+      >
         {!hasMessages && (
           <div className="welcome-panel">
             <div className="welcome-orbit">✦</div>
@@ -883,89 +1161,102 @@ function ChatView({
           </div>
         )}
 
-        {messages.map((message, index) => (
-          <div
-            className={`message-row ${message.role}`}
-            key={`${message.text.slice(0, 20)}-${index}`}
-          >
+        {messages.map((message, index) => {
+          const msgKey = message.id || `msg-${message.role}-${index}`;
+          return (
             <div
-              className={`avatar ${message.role === "user" ? "user-avatar-badge" : "assistant-avatar"}`}
+              className={`message-row ${message.role}${message.isError ? " message-error" : ""}`}
+              key={msgKey}
             >
-              {message.role === "user" ? displayName[0]?.toUpperCase() : "✦"}
-            </div>
+              <div
+                className={`avatar ${message.role === "user" ? "user-avatar-badge" : "assistant-avatar"}`}
+              >
+                {message.role === "user" ? displayName[0]?.toUpperCase() : "✦"}
+              </div>
 
-            <div className="message-content">
-              <div className="message-header-row">
-                <span className="message-label">
-                  {message.role === "user" ? "You" : "AyurVeda assistant"}
-                </span>
+              <div className="message-content">
+                <div className="message-header-row">
+                  <span className="message-label">
+                    {message.role === "user" ? "You" : "AyurVeda assistant"}
+                  </span>
+                  {message.role === "assistant" && (
+                    message.isError ? (
+                      <span className="error-badge">
+                        <span>⚠️</span> Connection notice
+                      </span>
+                    ) : (
+                      <span className="grounded-badge">
+                        <span className="badge-spark">✦</span> Grounded in sources
+                      </span>
+                    )
+                  )}
+                </div>
+
+                <div className="message-bubble">
+                  {message.role === "assistant" ? (
+                    <FormattedAnswerPrimary text={message.text} />
+                  ) : (
+                    <div className="user-message-text">{message.text}</div>
+                  )}
+                </div>
+
                 {message.role === "assistant" && (
-                  <span className="grounded-badge">
-                    <span className="badge-spark">✦</span> Grounded in sources
-                  </span>
-                )}
-              </div>
-
-              <div className="message-bubble">
-                {message.role === "assistant" ? (
-                  <FormattedAnswerPrimary text={message.text} />
-                ) : (
-                  <div className="user-message-text">{message.text}</div>
-                )}
-              </div>
-
-              {message.role === "assistant" && (
-                <div className="message-tools">
-                  <button
-                    type="button"
-                    className="tool-btn"
-                    onClick={() => copyAnswer(message.text, index)}
-                    title="Copy answer"
-                  >
-                    <span>{copied === index ? "✓" : "📋"}</span>
-                    <span>{copied === index ? "Copied" : "Copy"}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="tool-btn"
-                    onClick={() => ask(messages[index - 1]?.text || "")}
-                    title="Regenerate response"
-                  >
-                    <span>↻</span>
-                    <span>Regenerate</span>
-                  </button>
-                  <span className="evidence-label">
-                    {message.citations?.length
-                      ? `✦ ${message.citations.length} sources cited`
-                      : "Educational synthesis"}
-                  </span>
-                </div>
-              )}
-
-              {message.citations?.length > 0 && (
-                <div className="citations">
-                  <div className="citation-title">
-                    <span>✦</span> Sources used in this answer
+                  <div className="message-tools">
+                    {!message.isError && (
+                      <button
+                        type="button"
+                        className="tool-btn"
+                        onClick={() => copyAnswer(message.text, index)}
+                        title="Copy answer"
+                      >
+                        <span>{copied === index ? "✓" : "📋"}</span>
+                        <span>{copied === index ? "Copied" : "Copy"}</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className={`tool-btn${message.isError ? " retry-btn" : ""}`}
+                      onClick={() => regenerate(index)}
+                      title={message.isError ? "Retry inquiry" : "Regenerate response"}
+                    >
+                      <span>↻</span>
+                      <span>{message.isError ? "Retry" : "Regenerate"}</span>
+                    </button>
+                    <span className="evidence-label">
+                      {message.isError
+                        ? "⚠️ Temporary notice"
+                        : message.citations?.length
+                        ? `✦ ${message.citations.length} source${message.citations.length === 1 ? "" : "s"} cited`
+                        : "Educational synthesis"}
+                    </span>
                   </div>
-                  <div className="citations-container">
-                    {message.citations.map((source, sourceIndex) => (
-                      <div className="citation-card" key={`${source.name}-${sourceIndex}`}>
-                        <div className="citation-header">
-                          <span className="source-index">{sourceIndex + 1}</span>
-                          <strong className="source-name">{source.name}</strong>
-                          {source.page && (
-                            <span className="source-page">Page {source.page}</span>
-                          )}
+                )}
+
+                {!message.isError && message.citations?.length > 0 && (
+                  <div className="citations">
+                    <div className="citation-title">
+                      <span>✦</span> Sources used in this answer
+                    </div>
+                    <div className="citations-container">
+                      {message.citations.map((source, sourceIndex) => (
+                        <div className="citation-card" key={`${source.name}-${sourceIndex}`}>
+                          <div className="citation-header">
+                            <span className="source-index">{sourceIndex + 1}</span>
+                            <strong className="source-name">{source.name}</strong>
+                            {source.page && (
+                              <span className="source-page">Page {source.page}</span>
+                            )}
+                          </div>
+                          <p className="citation-snippet">{source.snippet}</p>
                         </div>
-                        <p className="citation-snippet">{source.snippet}</p>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {loading && (
           <div className="message-row assistant loading-row">
@@ -985,8 +1276,6 @@ function ChatView({
             </div>
           </div>
         )}
-
-        <div ref={messagesEndRef} className="messages-bottom-anchor" />
       </div>
 
       <div className="composer-container">
@@ -994,15 +1283,28 @@ function ChatView({
           className="composer"
           onSubmit={(event) => {
             event.preventDefault();
+            if (textareaRef.current) {
+              textareaRef.current.style.height = "auto";
+            }
             ask();
           }}
         >
           <textarea
+            ref={textareaRef}
             value={input}
-            onChange={(event) => setInput(event.target.value)}
+            onChange={(event) => {
+              setInput(event.target.value);
+              if (textareaRef.current) {
+                textareaRef.current.style.height = "auto";
+                textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
+              }
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
+                if (textareaRef.current) {
+                  textareaRef.current.style.height = "auto";
+                }
                 ask();
               }
             }}
